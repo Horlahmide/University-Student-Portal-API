@@ -25,8 +25,8 @@ export const connectDB = async () => {
   try {
     const conn = await mongoose.connect(uri, {
       serverSelectionTimeoutMS: 5000, // Fail fast if DB is down
-      maxPoolSize: 500, // Increased to handle high concurrent traffic spikes (adjust based on your Atlas tier)
-      minPoolSize: 20, // Keeps a baseline pool warm for instant response
+      maxPoolSize: 50, // Optimal balance: handles high concurrent traffic without wasting RAM or hitting Atlas limits
+      minPoolSize: 5, // Keeps a small baseline pool warm for instant response
       socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
     });
 
