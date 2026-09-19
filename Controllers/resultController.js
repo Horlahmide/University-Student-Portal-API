@@ -1,8 +1,9 @@
+import mongoose from "mongoose";
 import Result from "../Models/resultModel.js";
 import Course from "../Models/courseModel.js";
 import Semester from "../Models/semesterModel.js";
-import User from "../Models/userModel.js";
 import { uploadResultsSchema } from "../lib/validations.js";
+import CourseRegistration from "../Models/courseRegistrationModel.js";
 
 // Helper function to calculate letter grade from score
 const calculateGrade = (score) => {
@@ -52,18 +53,27 @@ export const uploadResults = async (req, res) => {
       });
     }
 
-    // 2. Verify that all submitted student IDs actually belong to students
+    // 2. Verify that all submitted students are actually registered for this course & semester
     const studentIds = results.map((r) => r.studentId);
-    const validStudents = await User.find({
-      _id: { $in: studentIds },
-      role: "student",
+    const registeredRecords = await CourseRegistration.find({
+      course: courseId,
+      semester: semesterId,
+      student: { $in: studentIds },
     });
 
-    if (validStudents.length !== studentIds.length) {
+    const registeredStudentIds = registeredRecords.map((r) =>
+      r.student.toString(),
+    );
+    const unregisteredStudentIds = studentIds.filter(
+      (id) => !registeredStudentIds.includes(id),
+    );
+
+    if (unregisteredStudentIds.length > 0) {
       return res.status(400).json({
         success: false,
         message:
-          "One or more student IDs are invalid or do not belong to a student.",
+          "Some students are not registered for this course in this semester.",
+        unregisteredStudents: unregisteredStudentIds,
       });
     }
 
@@ -111,6 +121,13 @@ export const uploadResults = async (req, res) => {
 export const getMyResults = async (req, res) => {
   const { semesterId } = req.query;
 
+  if (semesterId && !mongoose.Types.ObjectId.isValid(semesterId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid semesterId format.",
+    });
+  }
+
   const query = { student: req.user.id };
   if (semesterId) {
     query.semester = semesterId;
@@ -143,7 +160,18 @@ export const getCourseResults = async (req, res) => {
   if (!courseId || !semesterId) {
     return res.status(400).json({
       success: false,
-      message: "Please provide both courseId and semesterId in query parameters.",
+      message:
+        "Please provide both courseId and semesterId in query parameters.",
+    });
+  }
+
+  if (
+    !mongoose.Types.ObjectId.isValid(courseId) ||
+    !mongoose.Types.ObjectId.isValid(semesterId)
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid courseId or semesterId format.",
     });
   }
 

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Course from "../Models/courseModel.js";
 import Semester from "../Models/semesterModel.js";
 import CourseRegistration from "../Models/courseRegistrationModel.js";
@@ -118,10 +119,10 @@ export const registerCourses = async (req, res) => {
 export const getMyRegisteredCourses = async (req, res) => {
   const { semesterId } = req.query;
 
-  if (!semesterId) {
+  if (!semesterId || !mongoose.Types.ObjectId.isValid(semesterId)) {
     return res.status(400).json({
       success: false,
-      message: "Please provide a semesterId query parameter.",
+      message: "Please provide a valid semesterId query parameter.",
     });
   }
 
