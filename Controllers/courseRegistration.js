@@ -6,6 +6,56 @@ import { courseRegistrationSchema } from "../lib/validations.js";
 
 // 1. Get all available courses in the catalog
 export const getAllCourses = async (req, res) => {
+  const { page, limit } = req.query;
+
+  const parsePositiveInt = (value) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  };
+
+  const hasPagination = page !== undefined || limit !== undefined;
+
+  // If pagination params are provided, validate them and paginate.
+  // Without params, keep the original full-list behavior unchanged.
+  if (hasPagination) {
+    const pageNum = parsePositiveInt(page ?? "1");
+    const limitNum = parsePositiveInt(limit ?? "20");
+
+    if (!pageNum || !limitNum) {
+      return res.status(400).json({
+        success: false,
+        message: "page and limit must be positive whole numbers.",
+      });
+    }
+
+    const cappedLimit = Math.min(limitNum, 100);
+
+    try {
+      const total = await Course.countDocuments();
+      const courses = await Course.find()
+        .sort({ code: 1 })
+        .skip((pageNum - 1) * cappedLimit)
+        .limit(cappedLimit);
+
+      return res.status(200).json({
+        success: true,
+        data: courses,
+        pagination: {
+          page: pageNum,
+          limit: cappedLimit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / cappedLimit)),
+        },
+      });
+    } catch (error) {
+      console.error("Failed to fetch courses:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load courses. Please try again later.",
+      });
+    }
+  }
+
   try {
     const courses = await Course.find().sort({ code: 1 });
     return res.status(200).json({
